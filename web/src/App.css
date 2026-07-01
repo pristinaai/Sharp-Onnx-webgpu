@@ -130,6 +130,33 @@ a {
   color: #81c995;
 }
 
+.load-progress-wrap {
+  margin: 0.55rem auto 0;
+  max-width: 28rem;
+}
+
+.load-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: #1e2128;
+  overflow: hidden;
+}
+
+.load-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1967d2, #8ab4f8);
+  transition: width 0.25s ease;
+}
+
+.load-progress-detail {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: #6f7378;
+  text-align: center;
+  line-height: 1.35;
+}
+
 .status-warn {
   margin: 0.5rem 0 0;
   padding: 0.5rem 0.75rem;

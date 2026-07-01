@@ -44,8 +44,121 @@ type WorkerGpuNavigator = Navigator & {
 
 const workerScope = self as DedicatedWorkerGlobalScope
 const sessionCache = new Map<string, Promise<InferenceSession>>()
+const modelBufferCache = new Map<
+  string,
+  { graph: ArrayBuffer; data: ArrayBuffer | null; sidecarPath: string | null }
+>()
 const webGpuCompatibilityTierForModel = new Map<string, number>()
 const webGpuDeviceCache = new Map<string, WorkerGpuDevice>()
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) {
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`
+  }
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+  if (bytes >= 1024) {
+    return `${(bytes / 1024).toFixed(0)} KB`
+  }
+  return `${bytes} B`
+}
+
+async function fetchWithProgress(
+  url: string,
+  onProgress: (loaded: number, total: number | null) => void,
+): Promise<ArrayBuffer> {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Failed to download ${url} (${response.status})`)
+  }
+
+  const totalHeader = response.headers.get('content-length')
+  const total = totalHeader ? Number(totalHeader) : null
+  const reader = response.body?.getReader()
+  if (!reader) {
+    const buffer = await response.arrayBuffer()
+    onProgress(buffer.byteLength, buffer.byteLength)
+    return buffer
+  }
+
+  const chunks: Uint8Array[] = []
+  let loaded = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+    chunks.push(value)
+    loaded += value.byteLength
+    onProgress(loaded, total)
+  }
+
+  const merged = new Uint8Array(loaded)
+  let offset = 0
+  for (const chunk of chunks) {
+    merged.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return merged.buffer
+}
+
+async function loadModelBuffers(
+  modelUrl: string,
+  requestId?: string,
+): Promise<{ graph: ArrayBuffer; data: ArrayBuffer | null; sidecarPath: string | null }> {
+  const cached = modelBufferCache.get(modelUrl)
+  if (cached) {
+    postStatus('loading-model', 'Model weights cached in memory', requestId, 100)
+    return cached
+  }
+
+  const resolved = new URL(modelUrl, self.location.href)
+  let sidecarUrl: URL | null = null
+  let sidecarPath: string | null = null
+  if (resolved.pathname.endsWith('.onnx')) {
+    sidecarUrl = new URL(resolved.href)
+    sidecarUrl.pathname = `${resolved.pathname}.data`
+    sidecarPath = `${resolved.pathname.split('/').pop() ?? 'model.onnx'}.data`
+  }
+
+  const graphTotalEstimate = 7 * 1024 * 1024
+  const graph = await fetchWithProgress(resolved.href, (loaded, total) => {
+    const graphTotal = total ?? graphTotalEstimate
+    const overallTotal = sidecarUrl ? graphTotal + 2_500_000_000 : graphTotal
+    const pct = sidecarUrl
+      ? Math.min(5, (loaded / overallTotal) * 100)
+      : total
+        ? (loaded / total) * 100
+        : undefined
+    postStatus(
+      'loading-model',
+      `Downloading model graph… ${formatBytes(loaded)}${total ? ` / ${formatBytes(total)}` : ''}`,
+      requestId,
+      pct,
+    )
+  })
+
+  let data: ArrayBuffer | null = null
+  if (sidecarUrl && sidecarPath) {
+    data = await fetchWithProgress(sidecarUrl.href, (loaded, total) => {
+      const graphBytes = graph.byteLength
+      const weightTotal = total ?? Math.max(loaded, 1)
+      const overallTotal = graphBytes + weightTotal
+      const pct = Math.min(99, ((graphBytes + loaded) / overallTotal) * 100)
+      postStatus(
+        'loading-model',
+        `Downloading weights… ${formatBytes(loaded)}${total ? ` / ${formatBytes(total)}` : ''}`,
+        requestId,
+        pct,
+      )
+    })
+  }
+
+  const buffers = { graph, data, sidecarPath }
+  modelBufferCache.set(modelUrl, buffers)
+  return buffers
+}
 
 function resetRuntimeState(): void {
   webGpuCompatibilityTierForModel.clear()
@@ -345,23 +458,16 @@ async function createSession(modelUrl: string, requestId?: string): Promise<Infe
     )
   }
 
-  let externalData: OrtNamespace.InferenceSession.SessionOptions['externalData']
-  try {
-    const resolved = new URL(modelUrl, self.location.href)
-    if (resolved.pathname.endsWith('.onnx')) {
-      const sidecarUrl = new URL(resolved.href)
-      sidecarUrl.pathname = `${resolved.pathname}.data`
-      const sidecarPath = `${resolved.pathname.split('/').pop() ?? 'model.onnx'}.data`
+  const buffers = await loadModelBuffers(modelUrl, requestId)
 
-      externalData = [
-        {
-          path: sidecarPath,
-          data: sidecarUrl.href,
-        },
-      ]
-    }
-  } catch {
-    // Ignore URL parsing failures; ORT will still attempt to load the model.
+  let externalData: OrtNamespace.InferenceSession.SessionOptions['externalData']
+  if (buffers.data && buffers.sidecarPath) {
+    externalData = [
+      {
+        path: buffers.sidecarPath,
+        data: buffers.data,
+      },
+    ]
   }
 
   let webGpuDevice: WorkerGpuDevice | undefined
@@ -379,34 +485,14 @@ async function createSession(modelUrl: string, requestId?: string): Promise<Infe
 
   const sessionOptions = buildLowMemorySessionOptions(externalData, webGpuDevice, preferredLayout)
 
-  // The 2.4 GB sidecar is fetched by ORT internally (via its mountExternalData
-  // path). We can't tap into that fetch for byte-level progress — pre-fetching
-  // ourselves and handing ORT bytes/blob URLs trips ORT's per-pthread
-  // MountedFiles bookkeeping. Drive a simple time-based heartbeat so the UI
-  // doesn't look stuck.
-  let heartbeat: ReturnType<typeof setInterval> | null = null
-  const startedAt = performance.now()
-  const tick = () => {
-    const elapsedSec = Math.floor((performance.now() - startedAt) / 1000)
-    const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0')
-    const ss = String(elapsedSec % 60).padStart(2, '0')
-    postStatus('loading-model', `Loading model (${mm}:${ss}) — this can take several minutes`, requestId)
-  }
-  tick()
-  heartbeat = setInterval(tick, 1000)
+  const loadMessage = modelIsFp16
+    ? 'Initializing FP16 model on WebGPU…'
+    : 'Initializing FP32 model on WebGPU…'
+  postStatus('loading-model', loadMessage, requestId, 99)
 
-  try {
-    const loadMessage = modelIsFp16
-      ? 'Loading FP16 model via WebGPU (float16 shaders)…'
-      : 'Loading FP32 model via WebGPU…'
-    postStatus('loading-model', loadMessage, requestId)
-
-    return await ort.InferenceSession.create(modelUrl, sessionOptions)
-  } finally {
-    if (heartbeat !== null) {
-      clearInterval(heartbeat)
-    }
-  }
+  const session = await ort.InferenceSession.create(buffers.graph, sessionOptions)
+  postStatus('loading-model', 'Model ready', requestId, 100)
+  return session
 }
 
 function getTensor(outputs: SessionReturnType, key: string): OrtTensor {
@@ -973,8 +1059,28 @@ function buildSessionFeeds(
 async function handleLoadModel(requestId: string, payload: LoadModelRequestPayload): Promise<void> {
   if (payload.resetRuntimeState) {
     resetRuntimeState()
+  } else {
+    const key = sessionCacheKey(payload.modelUrl)
+    const existing = sessionCache.get(key)
+    if (existing) {
+      try {
+        await existing
+        postStatus('loading-model', 'Model ready (cached)', requestId, 100)
+        const reply: WorkerReply = {
+          type: 'reply',
+          requestId,
+          ok: true,
+          result: { modelUrl: payload.modelUrl },
+        }
+        postMessageSafe(reply)
+        return
+      } catch {
+        sessionCache.delete(key)
+      }
+    }
   }
-  postStatus('loading-model', 'Starting model download…', requestId)
+
+  postStatus('loading-model', 'Starting model download…', requestId, 0)
   const session = await getSession(payload.modelUrl, requestId)
   validateModelInputs(session)
 

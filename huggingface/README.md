@@ -1,13 +1,13 @@
 ---
-license: other
+
+## license: other
 license_name: apple-ml-research-model
-license_link: https://github.com/apple/ml-sharp/blob/main/LICENSE_MODEL
+license_link: [https://github.com/apple/ml-sharp/blob/main/LICENSE_MODEL](https://github.com/apple/ml-sharp/blob/main/LICENSE_MODEL)
 tags:
   - onnx
   - sharp
   - gaussian-splatting
   - research
----
 
 # SHARP ONNX weights (browser)
 
@@ -19,12 +19,14 @@ ONNX exports of [Apple SHARP](https://github.com/apple/ml-sharp) for the
 
 ## Files
 
-| File | Size (approx.) |
-|------|----------------|
-| `sharp_web_predictor.onnx` | 7 MB |
-| `sharp_web_predictor.onnx.data` | 2.5 GB |
-| `sharp_web_predictor_fp16.onnx` | 7 MB |
-| `sharp_web_predictor_fp16.onnx.data` | 1.2 GB |
+
+| File                                 | Size (approx.) |
+| ------------------------------------ | -------------- |
+| `sharp_web_predictor.onnx`           | 7 MB           |
+| `sharp_web_predictor.onnx.data`      | 2.5 GB         |
+| `sharp_web_predictor_fp16.onnx`      | 7 MB           |
+| `sharp_web_predictor_fp16.onnx.data` | 1.2 GB         |
+
 
 Each `.onnx` file requires its matching `.onnx.data` sidecar in the same folder/URL path.
 

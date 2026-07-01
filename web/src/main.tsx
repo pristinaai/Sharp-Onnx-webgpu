@@ -83,6 +83,8 @@ function App() {
   const [runtimeLabel, setRuntimeLabel] = useState('detecting…')
   const [backendHint, setBackendHint] = useState('')
   const [status, setStatusRaw] = useState('Ready')
+  const [statusDetail, setStatusDetail] = useState('')
+  const [loadProgress, setLoadProgress] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [plyBlob, setPlyBlob] = useState<Blob | null>(null)
@@ -105,6 +107,7 @@ function App() {
   }, [])
 
   const applyProfile = useCallback((profile: RuntimeProfile, markManual = false) => {
+    const urlChanged = activeProfileRef.current?.modelUrl !== profile.modelUrl
     setModelUrl(profile.modelUrl)
     setRuntimeLabel(profile.runtimeLabel)
     setBackendHint(profile.summary)
@@ -113,8 +116,10 @@ function App() {
     if (markManual) {
       setManualOverride(true)
     }
-    setModelLoaded(false)
-    modelLoadedRef.current = false
+    if (urlChanged) {
+      setModelLoaded(false)
+      modelLoadedRef.current = false
+    }
   }, [])
 
   const refreshRecommendation = useCallback(
@@ -131,6 +136,23 @@ function App() {
 
   const onStatus = useCallback(
     (message: WorkerStatusMessage) => {
+      if (message.stage === 'loading-model') {
+        setStatusDetail(message.message)
+        if (message.progress !== undefined) {
+          setLoadProgress(message.progress)
+        }
+        if (message.progress !== undefined && message.progress >= 100) {
+          setStatus('Model ready')
+        } else if (message.progress !== undefined) {
+          setStatusRaw(`Loading model… ${Math.round(message.progress)}%`)
+        } else {
+          setStatus(message.message)
+        }
+        return
+      }
+
+      setLoadProgress(null)
+      setStatusDetail('')
       setStatus(message.message)
     },
     [setStatus],
@@ -259,7 +281,7 @@ function App() {
         await worker.loadModel({
           modelUrl: active.modelUrl,
           allowWebGpuFp32: active.allowWebGpuFp32,
-          resetRuntimeState: resetRuntimeState || !modelLoadedRef.current,
+          resetRuntimeState,
         })
         setModelLoaded(true)
         modelLoadedRef.current = true
@@ -291,6 +313,7 @@ function App() {
 
     await ensureBestSettings()
     setPlyBlob(null)
+    setLoadProgress(null)
     await ensureModelLoaded(false)
 
     const active = activeProfileRef.current
@@ -511,9 +534,25 @@ function App() {
         </div>
 
         <p className={`status-line ${status === 'Done' ? 'status-line-ok' : ''}`} role="status">
-          {busy && <span className="status-spinner" aria-hidden="true" />}
+          {busy && loadProgress === null && <span className="status-spinner" aria-hidden="true" />}
           {status}
         </p>
+
+        {loadProgress !== null && (
+          <div className="load-progress-wrap">
+            <div
+              className="load-progress"
+              role="progressbar"
+              aria-valuenow={Math.round(loadProgress)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Model download progress"
+            >
+              <div className="load-progress-bar" style={{ width: `${Math.min(100, loadProgress)}%` }} />
+            </div>
+            {statusDetail && <p className="load-progress-detail">{statusDetail}</p>}
+          </div>
+        )}
 
         {recommended?.confidence === 'unsupported' && (
           <p className="status-warn">{recommended.summary}</p>
