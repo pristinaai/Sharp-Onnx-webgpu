@@ -140,35 +140,32 @@ The app lives in **`web/`**. A root [`vercel.json`](vercel.json) points Vercel a
 3. In **Settings → General → Build & Development Settings**, clear any custom **Install Command** override (leave blank so `vercel.json` applies), or set it to exactly `npm install`.
 4. Deploy — install is plain `npm install` (no Git LFS on Vercel; model weights are stripped from the build output).
 
-**Model weights (~4 GB)** exceed Vercel static hosting limits. Production builds on Vercel strip `.data` / `.part*` files from `dist/` so the site deploys; **host weights on Hugging Face** (see below) and set `VITE_MODEL_URL_FP32` / `VITE_MODEL_URL_FP16` in Vercel, or run locally with `npm run dev`.
+**Model weights (~4 GB)** exceed Vercel static hosting limits. Production builds strip `.data` / `.part*` from `dist/` and load weights from **[sentiantai/sharp-onnx-webgpu-weights](https://huggingface.co/sentiantai/sharp-onnx-webgpu-weights)** by default. Local `npm run dev` uses bundled files under `web/public/models/` when present.
 
-### Hugging Face (recommended for Vercel)
+### Hugging Face weights
 
-1. **Create a public model repo** on [huggingface.co/new](https://huggingface.co/new) → type **Model** → name e.g. `sharp-onnx-webgpu-weights`.
+Hosted at **[huggingface.co/sentiantai/sharp-onnx-webgpu-weights](https://huggingface.co/sentiantai/sharp-onnx-webgpu-weights/tree/main)** (public model repo).
 
-2. **Upload the four files** from `web/public/models/` (after local `git lfs pull` / `npm install` so `.data` files exist):
+Production/Vercel uses these URLs automatically. To override, set in **Vercel → Settings → Environment Variables**:
+
+| Name | Value |
+|------|--------|
+| `VITE_MODEL_URL_FP32` | `https://huggingface.co/sentiantai/sharp-onnx-webgpu-weights/resolve/main/sharp_web_predictor.onnx` |
+| `VITE_MODEL_URL_FP16` | `https://huggingface.co/sentiantai/sharp-onnx-webgpu-weights/resolve/main/sharp_web_predictor_fp16.onnx` |
+
+To re-upload or update weights locally:
 
 ```bash
 pip install -U huggingface_hub
 huggingface-cli login
 
-# Replace YOUR_USER with your HF username/org
-huggingface-cli upload YOUR_USER/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor.onnx --repo-type model
-huggingface-cli upload YOUR_USER/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor.onnx.data --repo-type model
-huggingface-cli upload YOUR_USER/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor_fp16.onnx --repo-type model
-huggingface-cli upload YOUR_USER/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor_fp16.onnx.data --repo-type model
+huggingface-cli upload sentiantai/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor.onnx --repo-type model
+huggingface-cli upload sentiantai/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor.onnx.data --repo-type model
+huggingface-cli upload sentiantai/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor_fp16.onnx --repo-type model
+huggingface-cli upload sentiantai/sharp-onnx-webgpu-weights ./web/public/models/sharp_web_predictor_fp16.onnx.data --repo-type model
 ```
 
-Copy the model card from [`huggingface/README.md`](huggingface/README.md) into the repo README on Hugging Face (includes Apple research-only license notice).
-
-3. **Vercel → Settings → Environment Variables** (Production + Preview):
-
-| Name | Value |
-|------|--------|
-| `VITE_MODEL_URL_FP32` | `https://huggingface.co/YOUR_USER/sharp-onnx-webgpu-weights/resolve/main/sharp_web_predictor.onnx` |
-| `VITE_MODEL_URL_FP16` | `https://huggingface.co/YOUR_USER/sharp-onnx-webgpu-weights/resolve/main/sharp_web_predictor_fp16.onnx` |
-
-4. **Redeploy** Vercel. The app loads `.onnx.data` automatically from the same HF path.
+Model card template: [`huggingface/README.md`](huggingface/README.md).
 
 If you still see **404 NOT_FOUND**, confirm the latest deployment succeeded and that Framework Preset is **Vite** (or Other with the commands from `vercel.json`).
 
