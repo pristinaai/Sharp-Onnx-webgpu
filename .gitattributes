@@ -1,0 +1,2 @@
+# ONNX external weight blobs exceed GitHub's 100 MB file limit.
+*.onnx.data filter=lfs diff=lfs merge=lfs -text

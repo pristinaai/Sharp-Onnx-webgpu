@@ -1,0 +1,14 @@
+# Python dependencies for SHARP -> ONNX export (see scripts/setup_export_env.sh)
+torch>=2.2
+torchvision>=0.17
+timm>=0.9
+onnx>=1.16
+onnxruntime>=1.18
+onnxscript>=0.1.0
+numpy
+scipy
+pillow
+click
+plyfile
+matplotlib
+imageio
