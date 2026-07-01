@@ -131,6 +131,19 @@ Open the URL shown (usually `http://localhost:5173`):
 | Node.js        | 18+ (20+ recommended for Vite 7; this repo pins Vite 6 for Node 18) |
 
 
+## Deploying on Vercel
+
+The app lives in **`web/`**. A root [`vercel.json`](vercel.json) points Vercel at that folder — you do **not** need to set Root Directory manually (or set it to `web` and use [`web/vercel.json`](web/vercel.json) instead).
+
+1. Import the GitHub repo in Vercel.
+2. Leave **Root Directory** empty, or set it to **`web`** (both are supported).
+3. Deploy — install runs `git lfs pull` so model parts are available at build time.
+
+**Model weights (~4 GB)** exceed Vercel static hosting limits. Production builds on Vercel strip `.data` / `.part*` files from `dist/` so the site deploys; host weights on Hugging Face / R2 and paste the URL in **Advanced → Model URL**, or run locally with `npm run dev`.
+
+If you still see **404 NOT_FOUND**, confirm the latest deployment succeeded and that Framework Preset is **Vite** (or Other with the commands from `vercel.json`).
+
+
 ## Project layout
 
 ```

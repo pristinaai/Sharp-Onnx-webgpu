@@ -6,11 +6,12 @@
   "scripts": {
     "postinstall": "node scripts/sync_ort_assets.mjs && node scripts/sync_viewer_assets.mjs && node scripts/join_model_parts.mjs",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prune_vercel_dist.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "@playcanvas/supersplat-viewer": "^1.26.4",
+    "@vercel/analytics": "^2.0.1",
     "exifr": "^7.1.3",
     "onnxruntime-web": "^1.24.2",
     "react": "^19.2.0",

@@ -1,0 +1,5 @@
+push-log.txt
+.venv-export/
+vendor/
+web/node_modules/
+web/dist/

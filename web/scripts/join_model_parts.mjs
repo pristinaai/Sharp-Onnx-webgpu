@@ -31,13 +31,18 @@ async function joinFromManifest(manifestPath) {
     await unlink(outPath)
   }
 
+  for (const partName of manifest.parts) {
+    const partPath = path.join(modelsDir, partName)
+    if (!(await exists(partPath))) {
+      console.warn(`join_model_parts: skipping ${manifest.file} — missing ${partName} (run git lfs pull)`)
+      return false
+    }
+  }
+
   const handle = await open(outPath, 'w')
   try {
     for (const partName of manifest.parts) {
       const partPath = path.join(modelsDir, partName)
-      if (!(await exists(partPath))) {
-        throw new Error(`Missing part ${partName} — run git lfs pull`)
-      }
       await handle.write(await readFile(partPath))
     }
   } finally {
@@ -47,7 +52,8 @@ async function joinFromManifest(manifestPath) {
   const joined = await stat(outPath)
   if (joined.size !== manifest.size) {
     await unlink(outPath).catch(() => {})
-    throw new Error(`Joined ${manifest.file} size mismatch: ${joined.size} vs ${manifest.size}`)
+    console.warn(`join_model_parts: ${manifest.file} size mismatch (${joined.size} vs ${manifest.size})`)
+    return false
   }
 
   console.log(`join_model_parts: assembled ${manifest.file} (${joined.size} bytes)`)
@@ -71,6 +77,5 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error)
-  process.exit(1)
+  console.warn('join_model_parts:', error instanceof Error ? error.message : error)
 })

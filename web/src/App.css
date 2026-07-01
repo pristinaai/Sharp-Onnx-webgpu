@@ -395,6 +395,19 @@ a {
   color: #6f7378;
 }
 
+.license-footer-connect {
+  margin-top: 0.75rem !important;
+}
+
+.license-footer-connect a {
+  font-weight: 700;
+  color: #9aa0a6;
+}
+
+.license-footer-connect a:hover {
+  color: #e8eaed;
+}
+
 .splat-viewer-wrap {
   margin-top: 0;
 }

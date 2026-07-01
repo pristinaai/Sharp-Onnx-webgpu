@@ -1,5 +1,6 @@
 import { StrictMode, useCallback, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Analytics } from '@vercel/analytics/react'
 
 import { EXAMPLE_IMAGES, fetchExampleImageFile, type ExampleImage } from './lib/exampleImages'
 import { estimateFocalLengthFromFile } from './lib/focal'
@@ -679,6 +680,15 @@ function App() {
           </a>{' '}
           (public domain)
         </p>
+        <p className="license-footer-connect">
+          <a
+            href="https://www.linkedin.com/in/neal-menhinick-36014554/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Connect with the developer
+          </a>
+        </p>
       </footer>
     </div>
   )
@@ -687,5 +697,6 @@ function App() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
+    <Analytics />
   </StrictMode>,
 )
