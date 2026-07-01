@@ -234,7 +234,30 @@ a {
 .viewer-actions {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+.viewer-external-link {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.viewer-external-link:hover {
+  text-decoration: none;
+}
+
+.viewer-actions-hint {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #6f7378;
+}
+
+.viewer-actions-hint a {
+  color: #8ab4f8;
 }
 
 .btn-secondary {

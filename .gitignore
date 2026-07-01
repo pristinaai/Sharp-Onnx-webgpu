@@ -6,8 +6,7 @@ __pycache__/
 # Vendor clone (run scripts/setup_export_env.sh locally)
 vendor/
 
-# ONNX FP32 external weights exceed GitHub LFS 2 GiB per-file limit (~2.5 GB).
-# Export locally — see web/public/models/README.md
+# Assembled from LFS parts on postinstall — see web/scripts/join_model_parts.mjs
 web/public/models/sharp_web_predictor.onnx.data
 
 # Node / build output

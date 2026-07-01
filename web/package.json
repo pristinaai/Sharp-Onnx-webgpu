@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "postinstall": "node scripts/sync_ort_assets.mjs && node scripts/sync_viewer_assets.mjs",
+    "postinstall": "node scripts/sync_ort_assets.mjs && node scripts/sync_viewer_assets.mjs && node scripts/join_model_parts.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview"

@@ -5,21 +5,20 @@
 | `sharp_web_predictor_fp16.onnx` | Yes | ~7 MB |
 | `sharp_web_predictor_fp16.onnx.data` | Yes | ~1.2 GB |
 | `sharp_web_predictor.onnx` | Yes | ~7 MB |
-| `sharp_web_predictor.onnx.data` | **No** | ~2.5 GB |
+| `sharp_web_predictor.onnx.data` | Assembled locally | ~2.5 GB |
+| `sharp_web_predictor.onnx.data.part*` | Yes (2 parts) | ~1.5 GB + ~1.1 GB |
 
-GitHub LFS rejects individual files larger than **2 GB**, so the FP32 weight sidecar is not in this repository.
-
-## FP32 weights (local export)
-
-After cloning, generate the FP32 sidecar locally:
+GitHub LFS rejects individual files over **2 GB**. The FP32 sidecar is split into parts; `npm install` (postinstall) reassembles them:
 
 ```bash
-./scripts/setup_export_env.sh
-source .venv-export/bin/activate
-python scripts/export_sharp_onnx.py \
-  --sharp-repo vendor/ml-sharp \
-  --output web/public/models/sharp_web_predictor.onnx \
-  --verbose
+git lfs pull
+cd web && npm install   # runs join_model_parts.mjs
 ```
 
-The FP16 pair in Git is enough for WebGPU with `shader-f16`. Use FP32 when your GPU has WebGPU but not float16 shaders (common on Linux/NVIDIA).
+To re-split after export:
+
+```bash
+node scripts/split_model_data.mjs web/public/models/sharp_web_predictor.onnx.data
+```
+
+The FP16 pair works as-is on WebGPU with `shader-f16`. FP32 is for WebGPU without float16 shaders (common on Linux/NVIDIA).

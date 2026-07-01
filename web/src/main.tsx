@@ -28,6 +28,7 @@ import {
 } from './lib/sharpConstants'
 import type { WorkerRuntimeHintMessage, WorkerStatusMessage } from './workers/messages'
 import { SplatViewer } from './components/SplatViewer'
+import { SPLATEDIT_VIEWER_URL } from './lib/viewers'
 import './App.css'
 
 function simplifyStatus(message: string): string {
@@ -531,7 +532,22 @@ function App() {
             <button type="button" className="btn-secondary" onClick={downloadPly} disabled={busy}>
               Download .ply
             </button>
+            <a
+              className="btn-secondary viewer-external-link"
+              href={SPLATEDIT_VIEWER_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open in SplatEdit viewer
+            </a>
           </div>
+          <p className="viewer-actions-hint">
+            Download your splat, then upload it to{' '}
+            <a href={SPLATEDIT_VIEWER_URL} target="_blank" rel="noreferrer">
+              splatedit.app/viewer
+            </a>
+            .
+          </p>
         </section>
       )}
 

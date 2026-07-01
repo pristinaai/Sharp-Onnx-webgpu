@@ -28,29 +28,32 @@ flowchart LR
   DATA --> ORT
 ```
 
+
+
 **Why two files?** The SHARP checkpoint is ~2.4 GB. ONNX stores weights in a `.onnx.data` sidecar when the graph exceeds protobuf limits. Both files must be served from the same directory.
 
 **Why NDC postprocessing in JS?** The export emits Gaussians in NDC space. Converting to metric coordinates requires SVD on covariance matrices — done in the worker with a Jacobi eigensolver instead of ONNX `Svd`, which browsers handle poorly.
 
 ## License note
 
-SHARP **code** and **model weights** have separate licenses. This repo includes verbatim copies and attribution under [`web/licenses/`](web/licenses/):
+SHARP **code** and **model weights** have separate licenses. This repo includes verbatim copies and attribution under `[web/licenses/](web/licenses/)`:
 
-- [`APPLE_SHARP_LICENSE_MODEL`](web/licenses/APPLE_SHARP_LICENSE_MODEL) (weights — **research use only**)
-- [`APPLE_ML_SHARP_CODE_LICENSE`](web/licenses/APPLE_ML_SHARP_CODE_LICENSE) (upstream ml-sharp code)
-- [`MODEL_DERIVATIVE_NOTICE.md`](web/licenses/MODEL_DERIVATIVE_NOTICE.md) (ONNX exports bundled in `web/public/models/`)
+- `[APPLE_SHARP_LICENSE_MODEL](web/licenses/APPLE_SHARP_LICENSE_MODEL)` (weights — **research use only**)
+- `[APPLE_ML_SHARP_CODE_LICENSE](web/licenses/APPLE_ML_SHARP_CODE_LICENSE)` (upstream ml-sharp code)
+- `[MODEL_DERIVATIVE_NOTICE.md](web/licenses/MODEL_DERIVATIVE_NOTICE.md)` (ONNX exports bundled in `web/public/models/`)
 
 **Attribution (required when redistributing):** *Apple Machine Learning Research Model is licensed under the Apple Machine Learning Research Model License Agreement.*
 
 ### Cloning (Git LFS)
 
-Model weight sidecars (`.onnx.data`) use **Git LFS**. The FP32 sidecar (~2.5 GB) exceeds GitHub’s **2 GB per-file** limit and is **not** in this repo — export it locally (see [`web/public/models/README.md`](web/public/models/README.md)). The FP16 sidecar (~1.2 GB) is included.
+Model weight sidecars (`.onnx.data`) use **Git LFS**. The FP32 sidecar (~2.5 GB) is split into two parts under the 2 GB GitHub limit and reassembled on `npm install`.
 
 ```bash
 git lfs install
 git clone https://github.com/pristinaai/Sharp-Onnx-webgpu.git
 cd Sharp-Onnx-webgpu
 git lfs pull
+cd web && npm install && npm run dev
 ```
 
 ## Quick start
@@ -86,11 +89,13 @@ python scripts/export_sharp_onnx.py \
 
 ### Model / runtime matrix (browser only)
 
-| Your hardware | Model | Runtime |
-|---------------|-------|---------|
-| WebGPU, no `shader-f16` (common on Linux) | **FP32** `sharp_web_predictor.onnx` | WebGPU |
-| WebGPU + `shader-f16` | FP16 `sharp_web_predictor_fp16.onnx` | WebGPU |
-| No WebGPU | FP16 | WASM (needs ~6 GB RAM, may OOM) |
+
+| Your hardware                             | Model                                | Runtime                         |
+| ----------------------------------------- | ------------------------------------ | ------------------------------- |
+| WebGPU, no `shader-f16` (common on Linux) | **FP32** `sharp_web_predictor.onnx`  | WebGPU                          |
+| WebGPU + `shader-f16`                     | FP16 `sharp_web_predictor_fp16.onnx` | WebGPU                          |
+| No WebGPU                                 | FP16                                 | WASM (needs ~6 GB RAM, may OOM) |
+
 
 Optional validation against PyTorch:
 
@@ -113,16 +118,18 @@ Open the URL shown (usually `http://localhost:5173`):
 1. **Load model** — fetches ONNX + sidecar (first load can take several minutes).
 2. **Upload** a photo.
 3. **Generate splat** — runs inference in a Web Worker (WebGPU if available, else WASM).
-4. **Download .ply** — open in [Supersplat](https://playcanvas.com/supersplat/editor), [Polycam](https://poly.cam/tools/gaussian-splatting), or other 3DGS viewers.
+4. **Download .ply** — open in the [SplatEdit viewer](https://www.splatedit.app/viewer) or any 3D Gaussian splat viewer.
 
 ### Requirements
 
-| Component | Minimum |
-|-----------|---------|
-| Export machine | Python 3.10+, ~8 GB RAM, ~5 GB disk |
-| Browser | Chrome/Edge desktop, WebGPU or WASM SIMD |
-| Runtime RAM | 8 GB+ recommended (model is large) |
-| Node.js | 18+ (20+ recommended for Vite 7; this repo pins Vite 6 for Node 18) |
+
+| Component      | Minimum                                                             |
+| -------------- | ------------------------------------------------------------------- |
+| Export machine | Python 3.10+, ~8 GB RAM, ~5 GB disk                                 |
+| Browser        | Chrome/Edge desktop, WebGPU or WASM SIMD                            |
+| Runtime RAM    | 8 GB+ recommended (model is large)                                  |
+| Node.js        | 18+ (20+ recommended for Vite 7; this repo pins Vite 6 for Node 18) |
+
 
 ## Project layout
 
@@ -140,29 +147,31 @@ web/
 
 ## Export options
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--sharp-repo` | (required) | Path to cloned [apple/ml-sharp](https://github.com/apple/ml-sharp) |
-| `--checkpoint` | auto-download | Local `.pt` checkpoint path |
-| `--output` | `web/public/models/...` | Output ONNX path |
-| `--device` | `cpu` | `cpu`, `cuda`, or `mps` |
-| `--opset` | `20` | ONNX opset version |
+
+| Flag           | Default                 | Description                                                        |
+| -------------- | ----------------------- | ------------------------------------------------------------------ |
+| `--sharp-repo` | (required)              | Path to cloned [apple/ml-sharp](https://github.com/apple/ml-sharp) |
+| `--checkpoint` | auto-download           | Local `.pt` checkpoint path                                        |
+| `--output`     | `web/public/models/...` | Output ONNX path                                                   |
+| `--device`     | `cpu`                   | `cpu`, `cuda`, or `mps`                                            |
+| `--opset`      | `20`                    | ONNX opset version                                                 |
+
 
 ## Troubleshooting
 
-**`Failed to load external data file ... .onnx.data`**
+`**Failed to load external data file ... .onnx.data**`
 Both model files must exist in `web/public/models/` and be served over HTTP (not `file://`).
 
 **WASM magic word error**
 Run via `npm run dev`, not by opening HTML directly. Ensure `public/ort/` exists (re-run `npm install`).
 
-**`Failed to get GPU adapter` / WebGPU warning**
+`**Failed to get GPU adapter` / WebGPU warning**
 WebGPU is optional. The app auto-detects GPU support and falls back to WASM when unavailable (common on Linux VMs, older drivers, or Chrome without WebGPU enabled). Inference still works — it is just slower. To try WebGPU on Chrome: `chrome://flags/#enable-unsafe-webgpu` or use a recent Chrome/Edge on hardware with Vulkan/DirectX 12 support.
 
-**`requires f16` / WebGPU shader error**
+`**requires f16` / WebGPU shader error**
 Your GPU has WebGPU but not `shader-f16`. Use the **FP32** model — click **Use recommended model** in the app.
 
-**`std::bad_alloc` / ERROR_CODE 6**
+`**std::bad_alloc` / ERROR_CODE 6**
 WASM ran out of memory. Enable WebGPU and use the **FP32** model so weights run on GPU VRAM instead of the WASM heap.
 
 **Export fails on `gsplat`**
@@ -174,3 +183,4 @@ The setup script installs SHARP without `gsplat` (only needed for video renderin
 - [apple/Sharp on Hugging Face](https://huggingface.co/apple/Sharp)
 - [ml-sharp-web](https://github.com/n1ckfg/ml-sharp-web) — prior art for browser SHARP
 - [pearsonkyle/Sharp-onnx](https://huggingface.co/pearsonkyle/Sharp-onnx) — community ONNX export
+

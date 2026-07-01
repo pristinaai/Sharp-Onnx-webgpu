@@ -1,0 +1,9 @@
+{
+  "file": "sharp_web_predictor.onnx.data",
+  "size": 2616066048,
+  "chunkBytes": 1500000000,
+  "parts": [
+    "sharp_web_predictor.onnx.data.part00",
+    "sharp_web_predictor.onnx.data.part01"
+  ]
+}
