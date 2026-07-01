@@ -137,7 +137,8 @@ The app lives in **`web/`**. A root [`vercel.json`](vercel.json) points Vercel a
 
 1. Import the GitHub repo in Vercel.
 2. Leave **Root Directory** empty, or set it to **`web`** (both are supported).
-3. Deploy — install runs `git lfs pull` so model parts are available at build time.
+3. In **Settings → General → Build & Development Settings**, clear any custom **Install Command** override (leave blank so `vercel.json` applies), or set it to exactly `npm install`.
+4. Deploy — install is plain `npm install` (no Git LFS on Vercel; model weights are stripped from the build output).
 
 **Model weights (~4 GB)** exceed Vercel static hosting limits. Production builds on Vercel strip `.data` / `.part*` files from `dist/` so the site deploys; host weights on Hugging Face / R2 and paste the URL in **Advanced → Model URL**, or run locally with `npm run dev`.
 
